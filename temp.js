@@ -1,319 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Ragdoll Archers - Multiplayer</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box
-    }
-
-    body {
-      background: #1a1a1a;
-      overflow: hidden;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      touch-action: none;
-      user-select: none
-    }
-
-    canvas {
-      display: block;
-      cursor: crosshair
-    }
-
-    /* ===== SCREENS ===== */
-    .scr {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(18, 18, 18, 0.97);
-      z-index: 10;
-      transition: opacity .3s
-    }
-
-    .scr.hidden {
-      display: none !important
-    }
-
-    .title {
-      font-size: clamp(28px, 6vw, 52px);
-      font-weight: 900;
-      color: #fff;
-      text-transform: uppercase;
-      letter-spacing: 3px;
-      margin-bottom: 6px;
-      text-shadow: 0 0 30px rgba(232, 160, 48, 0.4)
-    }
-
-    .sub {
-      font-size: 15px;
-      color: #777;
-      margin-bottom: 36px
-    }
-
-    .btn {
-      display: block;
-      width: 260px;
-      padding: 14px;
-      margin: 7px 0;
-      font-size: 16px;
-      font-weight: 700;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all .15s;
-      text-transform: uppercase;
-      letter-spacing: 2px
-    }
-
-    .btn:hover {
-      transform: scale(1.04);
-      filter: brightness(1.1)
-    }
-
-    .btn:active {
-      transform: scale(0.97)
-    }
-
-    .bp {
-      background: #e8a030;
-      color: #1a1a1a
-    }
-
-    .bs {
-      background: #444;
-      color: #fff
-    }
-
-    .bd {
-      background: #a93226;
-      color: #fff
-    }
-
-    .room-code {
-      font-size: clamp(32px, 8vw, 52px);
-      font-weight: 900;
-      color: #e8a030;
-      letter-spacing: 10px;
-      margin: 16px 0;
-      font-family: monospace;
-      cursor: pointer;
-      padding: 8px 18px;
-      border: 2px dashed #555;
-      border-radius: 8px;
-      transition: border-color .2s
-    }
-
-    .room-code:hover {
-      border-color: #e8a030
-    }
-
-    .inp {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 8px;
-      text-align: center;
-      background: #2a2a2a;
-      border: 2px solid #555;
-      color: #fff;
-      padding: 10px 18px;
-      border-radius: 8px;
-      width: 260px;
-      margin: 16px 0;
-      text-transform: uppercase;
-      font-family: monospace
-    }
-
-    .inp:focus {
-      outline: none;
-      border-color: #e8a030
-    }
-
-    .stat {
-      font-size: 14px;
-      color: #999;
-      margin: 8px 0;
-      min-height: 20px
-    }
-
-    .stat.err {
-      color: #e74c3c
-    }
-
-    .stat.ok {
-      color: #2ecc71
-    }
-
-    .wt::after {
-      content: '';
-      animation: dots 1.5s steps(4) infinite
-    }
-
-    @keyframes dots {
-      0% {
-        content: ''
-      }
-
-      25% {
-        content: '.'
-      }
-
-      50% {
-        content: '..'
-      }
-
-      75% {
-        content: '...'
-      }
-    }
-
-    .go-content {
-      text-align: center
-    }
-
-    .win-txt {
-      font-size: clamp(24px, 5vw, 40px);
-      font-weight: 900;
-      color: #e8a030;
-      margin-bottom: 14px
-    }
-
-    .score-txt {
-      font-size: 22px;
-      color: #bbb;
-      margin-bottom: 24px
-    }
-
-    /* ===== IN-GAME UI ===== */
-    #jumpBtn {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 5;
-      padding: 10px 28px;
-      background: rgba(50, 50, 50, 0.85);
-      border: 2px solid #666;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 700;
-      border-radius: 8px;
-      cursor: pointer;
-      display: none;
-      letter-spacing: 1px
-    }
-
-    #jumpBtn:hover {
-      background: rgba(70, 70, 70, 0.9)
-    }
-
-    #jumpBtn:active {
-      transform: translateX(-50%) scale(0.94)
-    }
-
-    #jumpBtn .jcost {
-      font-size: 10px;
-      color: #3498db;
-      display: block;
-      margin-top: 2px
-    }
-
-    #pauseBtn {
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      z-index: 5;
-      width: 36px;
-      height: 36px;
-      background: rgba(50, 50, 50, 0.6);
-      border: 1px solid #555;
-      border-radius: 6px;
-      color: #aaa;
-      font-size: 18px;
-      cursor: pointer;
-      display: none
-    }
-
-    .toast {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      background: rgba(30, 30, 30, 0.95);
-      color: #fff;
-      padding: 10px 24px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      border: 1px solid #555;
-      opacity: 0;
-      transition: opacity .3s;
-      pointer-events: none
-    }
-
-    .toast.show {
-      opacity: 1
-    }
-  </style>
-</head>
-
-<body>
-
-  <!-- ===== MAIN MENU ===== -->
-  <div id="menuScr" class="scr">
-    <div class="title">Ragdoll Archers</div>
-    <div class="sub">Multiplayer Bow &amp; Arrow Battle</div>
-    <button class="btn bp" onclick="G.createRoom()">Create Room</button>
-    <button class="btn bs" onclick="G.showJoin()">Join Room</button>
-    <button class="btn bs" onclick="G.startBot()">Play vs Bot</button>
-  </div>
-
-  <!-- ===== LOBBY ===== -->
-  <div id="lobbyScr" class="scr hidden">
-    <div class="sub">Share this code with your friend</div>
-    <div class="room-code" id="roomCode" onclick="G.copyCode()" title="Click to copy">-----</div>
-    <div class="stat" id="lobbyStat"><span class="wt">Connecting</span></div>
-    <button class="btn bd" onclick="G.cancel()" style="margin-top:16px">Cancel</button>
-  </div>
-
-  <!-- ===== JOIN ===== -->
-  <div id="joinScr" class="scr hidden">
-    <div class="sub">Enter your friend's room code</div>
-    <input type="text" class="inp" id="joinInp" maxlength="5" placeholder="XXXXX" autocomplete="off" spellcheck="false">
-    <div class="stat" id="joinStat"></div>
-    <button class="btn bp" onclick="G.joinRoom()">Join</button>
-    <button class="btn bs" onclick="G.showMenu()" style="margin-top:8px">Back</button>
-  </div>
-
-  <!-- ===== GAME OVER ===== -->
-  <div id="goScr" class="scr hidden">
-    <div class="go-content">
-      <div class="win-txt" id="winTxt">Player 1 Wins!</div>
-      <div class="score-txt" id="scoreTxt">0 - 0</div>
-      <button class="btn bp" onclick="G.nextRound()">Next Round</button>
-      <button class="btn bs" onclick="G.backMenu()" style="margin-top:8px">Main Menu</button>
-    </div>
-  </div>
-
-  <canvas id="cv"></canvas>
-  <button id="jumpBtn" onclick="G.doJump()">JUMP<span class="jcost">20 STAMINA</span></button>
-  <button id="pauseBtn" onclick="G.togglePause()">⏸</button>
-  <div class="toast" id="toast"></div>
-
-  <!-- WebSocket networking handled by server.js -->
-  <script>
     // ================================================================
     //  RAGDOLL ARCHERS — Complete Game
     // ================================================================
@@ -592,12 +277,9 @@
         hsFlash = 15; shake = 15;
         return;
       }
-      // === LEG SEVERED = FALL DOWN ===
-      if (limbGroup === 'legF' || limbGroup === 'legB') {
-        if (!sm.fallen) {
-          sm.fallen = true;
-          sm.kbVX = (arrVX || 0) * 0.4;
-        }
+      // === BOTH LEGS GONE = can't jump ===
+      if (sm.severed.has('legF') && sm.severed.has('legB')) {
+        sm.st = 0; // drain stamina — can't do anything
       }
       // === BOW ARM GONE = can't shoot (cancel aim) ===
       if (limbGroup === 'armF') {
@@ -808,11 +490,10 @@
           if (this.stun > 0 || this.flinch > 0) walkVx = 0;
           if (this.slow > 0) walkVx *= 0.5;
           if (this.isAim) walkVx *= 0.4;
-          if (this.fallen) walkVx = 0;
           
           this.vx = walkVx;
           
-          if (keys.space && this.onGround && this.st >= C.JUMP_COST && this.stun <= 0 && !this.fallen) {
+          if (keys.space && this.onGround && this.st >= C.JUMP_COST && this.stun <= 0) {
             this.jump();
             keys.space = false; // require re-press
           }
@@ -895,19 +576,8 @@
         // Update facing if aiming
         if (this.isAim) this.facing = Math.cos(this.aimA) >= 0 ? 1 : -1;
         
-        let targetAngle = 0;
-        let targetHyOffset = 45 * s;
-        if (this.fallen) {
-           targetAngle = -(Math.PI / 2.2) * this.facing;
-           targetHyOffset = 18 * s;
-        }
-        
-        if (this.fallAngle === undefined) { this.fallAngle = 0; this.hyOffset = 45 * s; }
-        this.fallAngle += (targetAngle - this.fallAngle) * 0.15;
-        this.hyOffset += (targetHyOffset - this.hyOffset) * 0.15;
-        
         const stgOff = this.stgT > 0 ? Math.sin(this.stgT * Math.PI) * (12 * s) * this.stgD : 0;
-        let hy = this.y - this.hyOffset + Math.sin(this.breath) * (2 * s);
+        let hy = this.y - (45 * s) + Math.sin(this.breath) * (2 * s);
         
         // Calculate head shake if stunned
         let headXOff = 0, headYOff = 0;
@@ -943,31 +613,17 @@
           hbx = sx - (10 * s) * f; hby = sy + (13 * s);
           ebx = sx - (6 * s) * f; eby = sy + (6 * s);
         }
-        let jObj = {
+        return {
           head: { x: hdx, y: hdy }, shoulder: { x: sx, y: sy }, hip: { x: hx, y: hy },
           elbowF: { x: efx, y: efy }, handF: { x: hfx, y: hfy },
           elbowB: { x: ebx, y: eby }, handB: { x: hbx, y: hby },
           kneeF: { x: kfx, y: kfy }, footF: { x: ffx, y: ffy },
           kneeB: { x: kbx, y: kby }, footB: { x: fbx, y: fby },
         };
-
-        if (Math.abs(this.fallAngle) > 0.05) {
-          const cos = Math.cos(this.fallAngle);
-          const sin = Math.sin(this.fallAngle);
-          for (let key in jObj) {
-            if (key === 'hip') continue;
-            let pt = jObj[key];
-            let dx = pt.x - hx;
-            let dy = pt.y - hy;
-            pt.x = hx + dx * cos - dy * sin;
-            pt.y = hy + dx * sin + dy * cos;
-          }
-        }
-        return jObj;
       }
 
       jump() {
-        if (!this.alive || !this.onGround || this.st < C.JUMP_COST || this.fallen) return false;
+        if (!this.alive || !this.onGround || this.st < C.JUMP_COST) return false;
         this.vy = C.JUMP_VY; this.onGround = false; this.st -= C.JUMP_COST;
         return true;
       }
@@ -989,38 +645,26 @@
     // ===== HIT DETECTION =====
     function checkHit(arr, sm) {
       if (!sm.alive || arr.stuck || arr.hasHit) return null;
-      const tx = arr.x + Math.cos(arr.angle) * 29;
-      const ty = arr.y + Math.sin(arr.angle) * 29;
+      const tx = arr.x + Math.cos(arr.angle) * 13;
+      const ty = arr.y + Math.sin(arr.angle) * 13;
       const j = sm.getJoints();
-      
-      const checkPt = (name, x, y, r) => {
-        if (dist(tx, ty, x, y) < r) return { joint: name, headshot: false, x, y };
-        return null;
-      };
-      const mid = (p1, p2) => ({ x: (p1.x + p2.x)/2, y: (p1.y + p2.y)/2 });
-      
       // Head (headshot)
-      if (dist(tx, ty, j.head.x, j.head.y) < sm.headR + 5.5)
+      if (dist(tx, ty, j.head.x, j.head.y) < sm.headR + 4)
         return { joint: 'head', headshot: true, x: j.head.x, y: j.head.y };
-        
-      let res;
-      // Torso
-      if (res = checkPt('shoulder', j.shoulder.x, j.shoulder.y, 12)) return res;
-      if (res = checkPt('hip', j.hip.x, j.hip.y, 12)) return res;
-      if (res = checkPt('shoulder', (j.shoulder.x + j.hip.x)/2, (j.shoulder.y + j.hip.y)/2, 12)) return res;
-
-      // Limbs
-      const limbs = [
-        ['kneeF', j.hip, j.kneeF, 9.5], ['footF', j.kneeF, j.footF, 9.5],
-        ['kneeB', j.hip, j.kneeB, 9.5], ['footB', j.kneeB, j.footB, 9.5],
-        ['elbowF', j.shoulder, j.elbowF, 9.5], ['handF', j.elbowF, j.handF, 9.5],
-        ['elbowB', j.shoulder, j.elbowB, 9.5], ['handB', j.elbowB, j.handB, 9.5]
+      // Body parts
+      const parts = [
+        ['shoulder', 9], ['hip', 9],
+        ['elbowF', 7], ['handF', 7], ['elbowB', 7], ['handB', 7],
+        ['kneeF', 7], ['footF', 7], ['kneeB', 7], ['footB', 7],
       ];
-      for (const [name, p1, p2, r] of limbs) {
-        if (res = checkPt(name, p2.x, p2.y, r)) return res;
-        const m = mid(p1, p2);
-        if (res = checkPt(name, m.x, m.y, r)) return res;
+      for (const [name, r] of parts) {
+        if (dist(tx, ty, j[name].x, j[name].y) < r)
+          return { joint: name, headshot: false, x: j[name].x, y: j[name].y };
       }
+      // Torso midpoint
+      const tmx = (j.shoulder.x + j.hip.x) / 2, tmy = (j.shoulder.y + j.hip.y) / 2;
+      if (dist(tx, ty, tmx, tmy) < 9)
+        return { joint: 'shoulder', headshot: false, x: tmx, y: tmy };
       return null;
     }
 
@@ -1382,11 +1026,7 @@
     }
 
     function handleHit(arr, tgt, hit, tgtIdx) {
-      // Arrow bounces off instead of sticking
-      arr.stuck = false;
-      arr.hasHit = true;
-      arr.vx = -arr.vx * 0.15 + rand(-1, 1);
-      arr.vy = -Math.abs(arr.vy) * 0.15 - rand(1, 3);
+      arr.stickTo(tgt, hit.joint);
       
       const arrPow = (arr.damage - C.ARR_DMG_MIN) / (C.ARR_DMG_MAX - C.ARR_DMG_MIN);
       let baseDmg = 40 + (arrPow * 80); // Scales 40 to 120
@@ -1405,19 +1045,21 @@
       
       let dmg = Math.round(baseDmg * dmgMult);
       
-      // Headshot Logic: Exactly 50 damage, no instant kill unless HP drops to 0
+      // Critical Headshot Logic
       if (hit.joint === 'head') {
-        dmg = 50;
-        tgt.stun = 40;
-        shake = Math.max(shake, 10);
-        hsFlash = Math.max(hsFlash, 10);
-        
-        if (tgt.hp - dmg <= 0 && tgt.alive) {
+        if (arrPow > 0.60 && tgt.alive) {
+          // Critical hit! Instant Decapitation
           tgt.hp = 0;
           spawnDeathBlood(hit.x, hit.y);
           severLimb(tgt, 'head', arr.vx, arr.vy, hit.x, hit.y);
-          if (tgtIdx !== myIdx) netSend({t: 'death', vx: arr.vx, vy: arr.vy});
+          tgt.die(arr.vx, arr.vy);
+          shake = Math.max(shake, 12);
+          hsFlash = 12;
           return;
+        } else {
+          // Non-critical hit (stun reaction)
+          tgt.stun = 40; // 40 frames of stun
+          shake = Math.max(shake, 8);
         }
       }
       
@@ -1783,9 +1425,9 @@
           return;
         }
         s = {
-          w0: 100 + Math.random() * 30, w1: 100 + Math.random() * 30,
+          w0: 140 + Math.random() * 40, w1: 140 + Math.random() * 40,
           y0: rand(280, 480), y1: rand(280, 480),
-          x0: rand(5, 40), x1: C.W - rand(5, 40),
+          x0: rand(20, 100), x1: C.W - rand(20, 100),
           h0: randInt(1, 4), h1: randInt(1, 4)
         };
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1929,7 +1571,4 @@
     }
 
     window.onload = init;
-  </script>
-</body>
-
-</html>
+  
