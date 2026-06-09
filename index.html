@@ -929,18 +929,19 @@
 
           this.vx = walkVx;
 
-          if (keys.space && this.onGround && this.st >= C.JUMP_COST && this.stun <= 0 && !this.fallen) {
+          if ((keys.space || keys.w) && this.onGround && this.st >= C.JUMP_COST && this.stun <= 0 && !this.fallen) {
             this.jump();
             keys.space = false; // require re-press
+            keys.w = false; // require re-press
           }
-
-          this.crouch = keys.s && !keys.w;
+          this.crouch = keys.s;
         }
 
         // Apply crouch
         let targetPlatY = this.basePlatY;
         if (this.crouch) targetPlatY += 22; // lower down
         this.platY += (targetPlatY - this.platY) * 0.2;
+        if (this.onGround) this.y += (this.platY - this.y) * 0.2;
 
         // Apply horizontal velocity and constrain to platform
         this.x += this.vx;
@@ -1753,6 +1754,8 @@
             break;
           }
           case 'aim': {
+            // Ignore aim messages from ourselves to avoid overwriting local state
+            if (m.from === myId) break;
             const idx = slotById[m.from] !== undefined ? slotById[m.from] : (1 - myIdx);
             const opp = players[idx];
             if (opp) {
