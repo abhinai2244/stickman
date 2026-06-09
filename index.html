@@ -374,6 +374,12 @@
     // ===== UTILITIES =====
     const dist = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     const lerp = (a, b, t) => a + (b - a) * t;
+    const lerpAngle = (a, b, t) => {
+      let diff = b - a;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      return a + diff * t;
+    };
     const rand = (a, b) => a + Math.random() * (b - a);
     const randInt = (a, b) => Math.floor(rand(a, b + 1));
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1441,11 +1447,19 @@
       // Fire Arrow Effect
       if (arr.type === 1) tgt.burnT = 180; // 3 seconds of burn
 
-      // Dismemberment for other limbs (blade makes it easier)
+      // Dismemberment for other limbs
       const limbGroup = LIMB_MAP[hit.joint];
-      if (limbGroup && limbGroup !== 'head' && arrPow > 0.55 && tgt.alive) {
-        severLimb(tgt, limbGroup, arr.vx, arr.vy, hit.x, hit.y);
-        shake = Math.max(shake, 8);
+      if (limbGroup && limbGroup !== 'head' && arrPow > 0.3 && tgt.alive) {
+        if (!tgt.limbHp) tgt.limbHp = { armF: 3, armB: 3, legF: 3, legB: 3 };
+        
+        // Strong hits deal 2 limb damage, weak hits deal 1 limb damage
+        const limbDmg = arrPow > 0.75 ? 2 : 1;
+        tgt.limbHp[limbGroup] -= limbDmg;
+        
+        if (tgt.limbHp[limbGroup] <= 0) {
+          severLimb(tgt, limbGroup, arr.vx, arr.vy, hit.x, hit.y);
+          shake = Math.max(shake, 12);
+        }
       }
       if (tgt.hp <= 0 && tgt.alive) {
         spawnDeathBlood(hit.x, hit.y);
@@ -1525,7 +1539,7 @@
 
         const idealAngle = calcBotAngle(bj.handF.x, bj.handF.y, predictX, predictY, bot._targetPow);
         if (bot.aimA === undefined) bot.aimA = idealAngle;
-        bot.aimA = lerp(bot.aimA, idealAngle, 0.4); // Smooth, fast tracking
+        bot.aimA = lerpAngle(bot.aimA, idealAngle, 0.4); // Smooth, fast tracking
       }
 
       // Release arrow when power reaches target
