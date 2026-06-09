@@ -302,7 +302,9 @@
     <div class="go-content">
       <div class="win-txt" id="winTxt">Player 1 Wins!</div>
       <div class="score-txt" id="scoreTxt">0 - 0</div>
-      <button class="btn bp" onclick="G.nextRound()">Next Round</button>
+      <button class="btn bp" id="nextRoundBtn" onclick="G.nextRound()">Next Round</button>
+      <div class="stat" id="waitingTxt" style="display:none;color:#aaa">Waiting for host to start next round<span
+          class="wt"></span></div>
       <button class="btn bs" onclick="G.backMenu()" style="margin-top:8px">Main Menu</button>
     </div>
   </div>
@@ -750,7 +752,7 @@
       }
     }
 
-// ===== INPUT =====
+    // ===== INPUT =====
     const keys = { a: false, d: false, w: false, s: false, space: false };
     window.addEventListener('keydown', e => {
       const k = e.key.toLowerCase();
@@ -810,19 +812,19 @@
           let walkVx = 0;
           if (keys.a) walkVx -= 2.2;
           if (keys.d) walkVx += 2.2;
-          
+
           if (this.stun > 0 || this.flinch > 0) walkVx = 0;
           if (this.slow > 0) walkVx *= 0.5;
           if (this.isAim) walkVx *= 0.4;
           if (this.fallen) walkVx = 0;
-          
+
           this.vx = walkVx;
-          
+
           if (keys.space && this.onGround && this.st >= C.JUMP_COST && this.stun <= 0 && !this.fallen) {
             this.jump();
             keys.space = false; // require re-press
           }
-          
+
           this.crouch = keys.s && !keys.w;
         }
 
@@ -897,24 +899,24 @@
 
       getJoints() {
         const s = 1.35; // Scale factor
-        
+
         // Update facing if aiming
         if (this.isAim) this.facing = Math.cos(this.aimA) >= 0 ? 1 : -1;
-        
+
         let targetAngle = 0;
         let targetHyOffset = 45 * s;
         if (this.fallen) {
-           targetAngle = -(Math.PI / 2.2) * this.facing;
-           targetHyOffset = 18 * s;
+          targetAngle = -(Math.PI / 2.2) * this.facing;
+          targetHyOffset = 18 * s;
         }
-        
+
         if (this.fallAngle === undefined) { this.fallAngle = 0; this.hyOffset = 45 * s; }
         this.fallAngle += (targetAngle - this.fallAngle) * 0.15;
         this.hyOffset += (targetHyOffset - this.hyOffset) * 0.15;
-        
+
         const stgOff = this.stgT > 0 ? Math.sin(this.stgT * Math.PI) * (12 * s) * this.stgD : 0;
         let hy = this.y - this.hyOffset + Math.sin(this.breath) * (2 * s);
-        
+
         // Calculate head shake if stunned
         let headXOff = 0, headYOff = 0;
         if (this.stun > 0) {
@@ -998,22 +1000,22 @@
       const tx = arr.x + Math.cos(arr.angle) * 29;
       const ty = arr.y + Math.sin(arr.angle) * 29;
       const j = sm.getJoints();
-      
+
       const checkPt = (name, x, y, r) => {
         if (dist(tx, ty, x, y) < r) return { joint: name, headshot: false, x, y };
         return null;
       };
-      const mid = (p1, p2) => ({ x: (p1.x + p2.x)/2, y: (p1.y + p2.y)/2 });
-      
+      const mid = (p1, p2) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
+
       // Head (headshot)
       if (dist(tx, ty, j.head.x, j.head.y) < sm.headR + 5.5)
         return { joint: 'head', headshot: true, x: j.head.x, y: j.head.y };
-        
+
       let res;
       // Torso
       if (res = checkPt('shoulder', j.shoulder.x, j.shoulder.y, 12)) return res;
       if (res = checkPt('hip', j.hip.x, j.hip.y, 12)) return res;
-      if (res = checkPt('shoulder', (j.shoulder.x + j.hip.x)/2, (j.shoulder.y + j.hip.y)/2, 12)) return res;
+      if (res = checkPt('shoulder', (j.shoulder.x + j.hip.x) / 2, (j.shoulder.y + j.hip.y) / 2, 12)) return res;
 
       // Limbs
       const limbs = [
@@ -1119,21 +1121,21 @@
       const s = 1.35;
       ctx.lineWidth = 14; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
-      
+
       const dx = hx - sx, dy = hy - sy;
-      const tLen = Math.sqrt(dx*dx + dy*dy) || 1;
-      const nx = dx/tLen, ny = dy/tLen;
-      
+      const tLen = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = dx / tLen, ny = dy / tLen;
+
       ctx.fillStyle = 'rgba(200,200,200,0.5)'; // abs color
       // Pecs
-      ctx.beginPath(); ctx.arc(sx + nx*6 - ny*3.5, sy + ny*6 + nx*3.5, 3, 0, 6.28); ctx.fill();
-      ctx.beginPath(); ctx.arc(sx + nx*6 + ny*3.5, sy + ny*6 - nx*3.5, 3, 0, 6.28); ctx.fill();
-      ctx.beginPath(); ctx.arc(sx + nx*(6 * s) - ny*(3.5 * s), sy + ny*(6 * s) + nx*(3.5 * s), 3 * s, 0, 6.28); ctx.fill();
-      ctx.beginPath(); ctx.arc(sx + nx*(6 * s) + ny*(3.5 * s), sy + ny*(6 * s) - nx*(3.5 * s), 3 * s, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + nx * 6 - ny * 3.5, sy + ny * 6 + nx * 3.5, 3, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + nx * 6 + ny * 3.5, sy + ny * 6 - nx * 3.5, 3, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + nx * (6 * s) - ny * (3.5 * s), sy + ny * (6 * s) + nx * (3.5 * s), 3 * s, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + nx * (6 * s) + ny * (3.5 * s), sy + ny * (6 * s) - nx * (3.5 * s), 3 * s, 0, 6.28); ctx.fill();
       // Abs
-      for(let i=1; i<=3; i++){
-         ctx.beginPath(); ctx.arc(sx + nx*((8+i*5) * s) - ny*(2.5 * s), sy + ny*((8+i*5) * s) + nx*(2.5 * s), 2.5 * s, 0, 6.28); ctx.fill();
-         ctx.beginPath(); ctx.arc(sx + nx*((8+i*5) * s) + ny*(2.5 * s), sy + ny*((8+i*5) * s) - nx*(2.5 * s), 2.5 * s, 0, 6.28); ctx.fill();
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath(); ctx.arc(sx + nx * ((8 + i * 5) * s) - ny * (2.5 * s), sy + ny * ((8 + i * 5) * s) + nx * (2.5 * s), 2.5 * s, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + nx * ((8 + i * 5) * s) + ny * (2.5 * s), sy + ny * ((8 + i * 5) * s) - nx * (2.5 * s), 2.5 * s, 0, 6.28); ctx.fill();
       }
     }
 
@@ -1254,15 +1256,15 @@
       ctx.save();
       ctx.translate(arr.x, arr.y); ctx.rotate(arr.angle);
       const hl = 22 * s;
-      
+
       // Shaft
       ctx.beginPath(); ctx.moveTo(-hl, 0); ctx.lineTo(hl, 0);
       ctx.strokeStyle = '#eee'; ctx.lineWidth = 3 * s; ctx.lineCap = 'round'; ctx.stroke();
-      
+
       // Head
       ctx.beginPath(); ctx.moveTo(hl + 3 * s, 0); ctx.lineTo(hl - 6 * s, -4.5 * s); ctx.lineTo(hl - 6 * s, 4.5 * s); ctx.closePath();
       ctx.fillStyle = '#ddd'; ctx.fill();
-      
+
       // Fletching
       ctx.beginPath();
       ctx.moveTo(-hl + 4 * s, -4 * s); ctx.lineTo(-hl, 0); ctx.lineTo(-hl + 4 * s, 4 * s);
@@ -1334,10 +1336,14 @@
       for (const a of arrows) {
         a.update();
         if (!a.stuck && !a.hasHit) {
-          const tgt = players[a.shooterIdx === 0 ? 1 : 0];
-          if (tgt && tgt.alive) {
-            const hit = checkHit(a, tgt);
-            if (hit) handleHit(a, tgt, hit, a.shooterIdx === 0 ? 1 : 0);
+          // Check against all players that aren't the shooter
+          for (let pi = 0; pi < players.length; pi++) {
+            if (pi === a.shooterIdx) continue;
+            const tgt = players[pi];
+            if (tgt && tgt.alive) {
+              const hit = checkHit(a, tgt);
+              if (hit) { handleHit(a, tgt, hit, pi); break; }
+            }
           }
           // Apple collision
           if (apple && apple.alive && !a.stuck) {
@@ -1393,13 +1399,13 @@
       arr.hasHit = true;
       arr.vx = -arr.vx * 0.15 + rand(-1, 1);
       arr.vy = -Math.abs(arr.vy) * 0.15 - rand(1, 3);
-      
+
       const arrPow = (arr.damage - C.ARR_DMG_MIN) / (C.ARR_DMG_MAX - C.ARR_DMG_MIN);
       let baseDmg = 40 + (arrPow * 80); // Scales 40 to 120
       if (arr.type === 2) baseDmg *= 1.6; // Blade arrow bonus
-      
+
       let dmgMult = 1.0;
-      switch(hit.joint) {
+      switch (hit.joint) {
         case 'head': dmgMult = 0.80; break;
         case 'shoulder': dmgMult = 0.60; break; // Torso/Neck
         case 'hip': dmgMult = 0.40; break; // Pelvis
@@ -1408,37 +1414,37 @@
         case 'elbowF': case 'elbowB': dmgMult = 0.20; break; // Upper Arm
         case 'handF': case 'handB': dmgMult = 0.15; break; // Lower Arm
       }
-      
+
       let dmg = Math.round(baseDmg * dmgMult);
-      
+
       // Headshot Logic: Exactly 50 damage, no instant kill unless HP drops to 0
       if (hit.joint === 'head') {
         dmg = 50;
         tgt.stun = 40;
         shake = Math.max(shake, 10);
         hsFlash = Math.max(hsFlash, 10);
-        
+
         if (tgt.hp - dmg <= 0 && tgt.alive) {
           tgt.hp = 0;
           spawnDeathBlood(hit.x, hit.y);
           severLimb(tgt, 'head', arr.vx, arr.vy, hit.x, hit.y);
-          if (tgtIdx !== myIdx) netSend({t: 'death', vx: arr.vx, vy: arr.vy});
+          if (tgtIdx !== myIdx) netSend({ t: 'death', vx: arr.vx, vy: arr.vy });
           return;
         }
       }
-      
+
       // Hit Reactions
-      if (['elbowF','elbowB','handF','handB'].includes(hit.joint)) {
+      if (['elbowF', 'elbowB', 'handF', 'handB'].includes(hit.joint)) {
         tgt.flinch = 20;
-      } else if (['kneeF','kneeB','footF','footB'].includes(hit.joint)) {
+      } else if (['kneeF', 'kneeB', 'footF', 'footB'].includes(hit.joint)) {
         tgt.slow = 80;
-      } else if (['shoulder','hip'].includes(hit.joint)) {
+      } else if (['shoulder', 'hip'].includes(hit.joint)) {
         tgt.stagger(arr.vx);
       }
 
       tgt.hp -= dmg;
       tgt.hp = Math.max(0, tgt.hp);
-      
+
       // Blood spray
       spawnBlood(hit.x, hit.y, arr.vx, arr.vy, hit.headshot ? 16 : 10, hit.headshot);
       spawnHit(hit.x, hit.y);
@@ -1451,11 +1457,11 @@
       const limbGroup = LIMB_MAP[hit.joint];
       if (limbGroup && limbGroup !== 'head' && arrPow > 0.3 && tgt.alive) {
         if (!tgt.limbHp) tgt.limbHp = { armF: 3, armB: 3, legF: 3, legB: 3 };
-        
+
         // Strong hits deal 2 limb damage, weak hits deal 1 limb damage
         const limbDmg = arrPow > 0.75 ? 2 : 1;
         tgt.limbHp[limbGroup] -= limbDmg;
-        
+
         if (tgt.limbHp[limbGroup] <= 0) {
           severLimb(tgt, limbGroup, arr.vx, arr.vy, hit.x, hit.y);
           shake = Math.max(shake, 12);
@@ -1466,7 +1472,7 @@
         tgt.die(arr.vx, arr.vy);
         if (tgt.idx !== myIdx) {
           // If my arrow killed them, explicitly tell them to die just in case physics desynced!
-          netSend({t: 'death', vx: arr.vx, vy: arr.vy});
+          netSend({ t: 'death', vx: arr.vx, vy: arr.vy });
         }
       }
     }
@@ -1487,9 +1493,19 @@
       roundTimer--;
       if (roundTimer <= 0) {
         gameState = 'roundOver';
-        if (d0 && d1) showRoundOver('Draw!');
-        else if (d0) { scores[1]++; showRoundOver(isBotGame ? 'Bot Wins!' : myIdx === 0 ? 'You Lose!' : 'You Win!'); }
-        else { scores[0]++; showRoundOver(isBotGame ? 'You Win!' : myIdx === 0 ? 'You Win!' : 'You Lose!'); }
+        if (d0 && d1) {
+          showRoundOver('Draw!');
+        } else if (d0) {
+          // Player 0 died → Player 1 wins
+          scores[1]++;
+          if (isBotGame) showRoundOver('Bot Wins!');
+          else showRoundOver(myIdx === 1 ? 'You Win!' : 'You Lose!');
+        } else {
+          // Player 1 died → Player 0 wins
+          scores[0]++;
+          if (isBotGame) showRoundOver('You Win!');
+          else showRoundOver(myIdx === 0 ? 'You Win!' : 'You Lose!');
+        }
       }
     }
 
@@ -1532,7 +1548,7 @@
       if (bot.isAim) {
         const tgtX = bot._targetHead ? pj.head.x : pj.shoulder.x;
         const tgtY = bot._targetHead ? pj.head.y : pj.shoulder.y;
-        
+
         // Lead the target based on their movement speed
         const predictX = tgtX + (plr.vx || 0) * 18;
         const predictY = tgtY + (plr.vy || 0) * 12;
@@ -1609,7 +1625,7 @@
             }
             break;
           }
-          case 'restart': startRound(m.s); break;
+          case 'restart': if (m.s) startRound(m.s); break;
         }
       } catch (e) { }
     }
@@ -1705,14 +1721,14 @@
       const pow = Math.max(0.2, p.aimPow);
       const a = new Arrow(j.handF.x, j.handF.y, p.aimA, pow, myIdx, 0);
       arrows.push(a);
-      
+
       p.st -= C.SHOOT_COST; p.cd = C.SHOOT_CD;
       p.isAim = false; p.aimPow = 0;
-      
+
       // Force normal arrow type always
       const shotType = 0;
       p.arrowType = 0;
-      
+
       // Send to opponent
       netSend({ t: 'shoot', a: p.aimA, p: pow, x: j.handF.x, y: j.handF.y, type: shotType });
     }
@@ -1735,7 +1751,7 @@
       // Apple
       if (apple && apple.alive) drawApple(apple);
       // Players
-      for (let i = 0; i < 2; i++) if (players[i]) drawStickman(players[i]);
+      for (let i = 0; i < players.length; i++) if (players[i]) drawStickman(players[i]);
       // Arrows
       for (const a of arrows) drawArrow(a);
       // Severed parts
@@ -1792,6 +1808,10 @@
     function showRoundOver(txt) {
       document.getElementById('winTxt').textContent = txt;
       document.getElementById('scoreTxt').textContent = scores[0] + ' - ' + scores[1];
+      // Show "Next Round" only to host or bot game; non-host sees waiting message
+      const isHostOrBot = isBotGame || isHost;
+      document.getElementById('nextRoundBtn').style.display = isHostOrBot ? 'block' : 'none';
+      document.getElementById('waitingTxt').style.display = isHostOrBot ? 'none' : 'block';
       showScr('goScr');
       document.getElementById('jumpBtn').style.display = 'none';
     }
@@ -1814,7 +1834,7 @@
           x0: rand(5, 40), x1: C.W - rand(5, 40),
           h0: randInt(1, 4), h1: randInt(1, 4)
         };
-        if (ws && ws.readyState === WebSocket.OPEN) {
+        if (ws && ws.readyState === WebSocket.OPEN && isHost) {
           netSend({ t: 'restart', s: s });
         }
       }
@@ -1826,7 +1846,7 @@
       players[1] = new Stickman(pl1.x + pl1.w / 2, pl1.y, -1, 1);
       players[0].helmetType = s.h0;
       players[1].helmetType = s.h1;
-      
+
       arrows = []; particles = []; roundTimer = 0; shake = 0; hsFlash = 0;
       bloodStains = []; severedParts = []; apple = new Apple(); appleRespawn = 0;
       gameState = 'playing';
@@ -1892,8 +1912,8 @@
         document.getElementById('pauseBtn').style.display = 'none';
       },
       nextRound() {
-        startRound();
-        netSend({ t: 'restart' });
+        if (!isBotGame && !isHost) return; // non-host waits for host's restart signal
+        startRound(); // host generates seed inside startRound and broadcasts it
       },
       backMenu() {
         wsClose();
