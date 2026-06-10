@@ -636,7 +636,7 @@
         // Floor
         if (this.y > C.H - 6) { this.y = C.H - 6; this.vy *= -0.25; this.vx *= 0.6; this.spin *= 0.4; }
         // Platform tops
-        for (const pl of [leftPlat, rightPlat]) {
+        for (const pl of platforms) {
           if (this.x >= pl.x && this.x <= pl.x + pl.w && this.y >= pl.y - 4 && this.y <= pl.y + 10) {
             this.y = pl.y - 4; this.vy *= -0.2; this.vx *= 0.5; this.spin *= 0.3;
           }
@@ -1082,9 +1082,11 @@
         return jObj;
       }
 
-      jump() {
-        if (!this.alive || !this.onGround || this.st < C.JUMP_COST || this.fallen) return false;
-        this.vy = C.JUMP_VY; this.onGround = false; this.st -= C.JUMP_COST;
+      jump(force = false) {
+        if (!this.alive || this.fallen) return false;
+        if (!force && (!this.onGround || this.st < C.JUMP_COST)) return false;
+        this.vy = C.JUMP_VY; this.onGround = false; 
+        if (!force) this.st -= C.JUMP_COST;
         return true;
       }
 
@@ -1426,20 +1428,20 @@
       ctx.fillStyle = C.BG;
       [26, 30, 34].forEach(bx => { ctx.fillRect(bx - 0.8, 32, 1.6, 3); });
       ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left';
-      ctx.fillText(scores[myIdx], 48, 32);
+      ctx.fillText(scores[myIdx >= 0 ? myIdx : 0] || 0, 48, 32);
       // Player name under skull
       ctx.font = '12px sans-serif'; ctx.fillStyle = '#bbb';
-      const displayMy = myName || ('Player ' + (myIdx + 1));
+      const displayMy = myName || ('Player ' + (myIdx >= 0 ? myIdx + 1 : 1));
       ctx.fillText(displayMy, 48, 48);
       // Score top-right
       ctx.textAlign = 'right'; ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = '#888';
-      ctx.fillText('SCORE', C.W - 18, 18);
+      ctx.fillText('SCORES', C.W - 18, 18);
       ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#fff';
-      ctx.fillText(scores[0] + ' / ' + scores[1], C.W - 18, 38);
-      // Opponent name near score
-      ctx.font = '12px sans-serif'; ctx.fillStyle = '#bbb';
-      const displayOpp = oppName || (myIdx === 0 ? 'Player 2' : 'Player 1');
-      ctx.fillText(displayOpp, C.W - 18, 54);
+      let sTxt = '';
+      for (let i = 0; i < scores.length; i++) {
+        sTxt += `P${i+1}: ${scores[i]}` + (i < scores.length-1 ? '  ' : '');
+      }
+      ctx.fillText(sTxt, C.W - 18, 38);
       ctx.restore();
     }
 
@@ -1500,7 +1502,7 @@
         aimSyncTick++;
         if (aimSyncTick % 3 === 0) {
           const p = players[myIdx];
-          if (myIdx >= 0) netSend({ t: 'aim', a: p.aimA, g: p.isAim ? 1 : 0, p: p.aimPow, x: p.x, cr: p.crouch ? 1 : 0 });
+          if (myIdx >= 0) netSend({ t: 'aim', a: p.aimA, g: p.isAim ? 1 : 0, p: p.aimPow, x: p.x, vx: p.vx, cr: p.crouch ? 1 : 0 });
         }
       }
       // Shake
@@ -1544,7 +1546,11 @@
           tgt.hp = 0;
           spawnDeathBlood(hit.x, hit.y);
           severLimb(tgt, 'head', arr.vx, arr.vy, hit.x, hit.y);
-          resolveDeath(tgtIdx, arr.vx, arr.vy, hit.x, hit.y, true);
+          tgt.die(arr.vx, arr.vy);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            const victimId = slotById && Object.keys(slotById).find(id => slotById[id] === tgtIdx);
+            netSend({ t: 'death', victim: tgtIdx, victimId: victimId || null, vx: arr.vx, vy: arr.vy, x: hit.x, y: hit.y });
+          }
           return;
         }
       }
@@ -1584,32 +1590,13 @@
         }
       }
       if (tgt.hp <= 0 && tgt.alive) {
-        resolveDeath(tgtIdx, arr.vx, arr.vy, hit.x, hit.y, true);
-      }
-    }
-
-    function resolveDeath(victimIdx, vx, vy, x, y, broadcast) {
-      if (roundResolved) return;
-      roundResolved = true;
-      gameState = 'roundOver';
-      const victim = players[victimIdx];
-      if (victim && victim.alive) {
-        victim.hp = 0;
-        spawnDeathBlood(x ?? victim.x, y ?? victim.y);
-        victim.die(vx, vy);
-      }
-      const winnerIdx = victimIdx === 0 ? 1 : 0;
-      scores[winnerIdx]++;
-      if (isBotGame) {
-        showRoundOver(victimIdx === myIdx ? 'Bot Wins!' : 'You Win!');
-      } else if (myIdx >= 0) {
-        showRoundOver(victimIdx === myIdx ? 'You Lose!' : 'You Win!');
-      } else {
-        showRoundOver((winnerIdx === 0 ? 'Player 1' : 'Player 2') + ' Wins!');
-      }
-      if (broadcast && ws && ws.readyState === WebSocket.OPEN) {
-        const victimId = slotById && Object.keys(slotById).find(id => slotById[id] === victimIdx);
-        netSend({ t: 'death', victim: victimIdx, victimId: victimId || null, vx, vy, x, y });
+        tgt.hp = 0;
+        spawnDeathBlood(hit.x ?? tgt.x, hit.y ?? tgt.y);
+        tgt.die(arr.vx, arr.vy);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const victimId = slotById && Object.keys(slotById).find(id => slotById[id] === tgtIdx);
+          netSend({ t: 'death', victim: tgtIdx, victimId: victimId || null, vx: arr.vx, vy: arr.vy, x: hit.x, y: hit.y });
+        }
       }
     }
 
@@ -1622,25 +1609,28 @@
     }
 
     function checkRoundOver() {
-      const d0 = players[0] && !players[0].alive;
-      const d1 = players[1] && !players[1].alive;
-      if (!d0 && !d1) { roundTimer = 0; return; }
+      let aliveCount = 0;
+      let lastAliveIdx = -1;
+      for (let i = 0; i < players.length; i++) {
+        if (players[i] && players[i].alive) {
+          aliveCount++;
+          lastAliveIdx = i;
+        }
+      }
+
+      if (aliveCount > 1) { roundTimer = 0; return; }
+
       if (roundTimer === 0) roundTimer = 130;
       roundTimer--;
       if (roundTimer <= 0) {
-        gameState = 'roundOver';
-        if (d0 && d1) {
-          showRoundOver('Draw!');
-        } else if (d0) {
-          // Player 0 died → Player 1 wins
-          scores[1]++;
-          if (isBotGame) showRoundOver('Bot Wins!');
-          else showRoundOver(myIdx === 1 ? 'You Win!' : 'You Lose!');
+        if (aliveCount === 1) scores[lastAliveIdx]++;
+        let winnerIdx = scores.findIndex(s => s >= 10);
+        if (winnerIdx >= 0) {
+          gameState = 'matchWin';
+          showRoundOver(`Player ${winnerIdx + 1} Wins Match!`);
         } else {
-          // Player 1 died → Player 0 wins
-          scores[0]++;
-          if (isBotGame) showRoundOver('You Win!');
-          else showRoundOver(myIdx === 0 ? 'You Win!' : 'You Lose!');
+          // Auto respawn!
+          if (isHost || isBotGame) startRound();
         }
       }
     }
@@ -1748,7 +1738,7 @@
           case 'jump': {
             const idx = slotById[m.from] !== undefined ? slotById[m.from] : (1 - myIdx);
             const opp = players[idx];
-            if (opp && opp.alive && opp.onGround) opp.jump();
+            if (opp && opp.alive) opp.jump(true);
             break;
           }
           case 'aim': {
@@ -1756,14 +1746,28 @@
             const opp = players[idx];
             if (opp) {
               opp.aimA = m.a; opp.isAim = !!m.g; opp.aimPow = m.p;
-              if (m.x !== undefined) opp.x = m.x;
+              
+              if (m.vx !== undefined) {
+                if (opp.vx !== m.vx || (m.x !== undefined && Math.abs(opp.x - m.x) > 30)) {
+                  if (m.x !== undefined) opp.x = m.x;
+                  opp.vx = m.vx;
+                }
+              } else if (m.x !== undefined) {
+                opp.x = m.x;
+              }
+              
               if (m.cr !== undefined) opp.crouch = m.cr === 1;
             }
             break;
           }
           case 'death': {
             const idx = m.victim !== undefined ? m.victim : (slotById[m.from] !== undefined ? slotById[m.from] : (1 - myIdx));
-            resolveDeath(idx, m.vx, m.vy, m.x, m.y, false);
+            const victim = players[idx];
+            if (victim && victim.alive) {
+              victim.hp = 0;
+              spawnDeathBlood(m.x ?? victim.x, m.y ?? victim.y);
+              victim.die(m.vx, m.vy);
+            }
             break;
           }
           case 'restart': if (m.s) startRound(m.s); break;
@@ -1814,7 +1818,6 @@
               break;
             case 'start':
               // Server instructs to start with seed and assignments
-              scores = [0, 0];
               const s = msg.s;
               slotById = {};
               const activeAssignments = (msg.assignments || []).filter(a => a.role === 'player' && a.idx >= 0).sort((a, b) => a.idx - b.idx);
@@ -1834,6 +1837,7 @@
               startRound(s);
               break;
             case 'game':
+              if (typeof msg.data === 'object' && msg.from) msg.data.from = msg.from;
               netRecv(msg.data);
               break;
             case 'error':
@@ -1983,8 +1987,12 @@
 
     function showRoundOver(txt) {
       document.getElementById('winTxt').textContent = txt;
-      document.getElementById('scoreTxt').textContent = scores[0] + ' - ' + scores[1];
-      // Show "Next Round" only to host or bot game; non-host sees waiting message
+      let sTxt = '';
+      for (let i = 0; i < scores.length; i++) {
+        sTxt += `P${i+1}: ${scores[i]}` + (i < scores.length-1 ? ' | ' : '');
+      }
+      document.getElementById('scoreTxt').textContent = sTxt;
+      // Show "Next Round" if they want to play a NEW match
       const isHostOrBot = isBotGame || isHost;
       document.getElementById('nextRoundBtn').style.display = isHostOrBot ? 'block' : 'none';
       document.getElementById('waitingTxt').style.display = isHostOrBot ? 'none' : 'block';
@@ -2018,25 +2026,28 @@
       let pCount = s.pCount || 2;
       platforms = [];
       
-      // 1. Top-Left
-      platforms.push({ x: 50, y: 250 + (s.r1 * 50), w: 140, h: C.H });
-      if (pCount >= 2) {
+      if (pCount === 2) {
+        // P1 Top-Left
+        platforms.push({ x: 50, y: 250 + (s.r1 * 50), w: 140, h: 140 });
+        // P2 Top-Right
+        platforms.push({ x: 800, y: 250 + (s.r2 * 50), w: 140, h: 140 });
+      } else if (pCount === 3) {
+        // P1 Top-Left
+        platforms.push({ x: 50, y: 250 + (s.r1 * 50), w: 140, h: 140 });
+        // P2 Top-Right
+        platforms.push({ x: 800, y: 250 + (s.r2 * 50), w: 140, h: 140 });
+        // P3 Bottom-Middle
+        platforms.push({ x: 425, y: 500 + (s.r1 * 30), w: 140, h: 140 });
+      } else {
+        // pCount >= 4
+        // 1. Top-Left
+        platforms.push({ x: 50, y: 250 + (s.r1 * 50), w: 140, h: 140 });
         // 2. Bottom, shifted right
-        platforms.push({ x: 260, y: 500 + (s.r2 * 40), w: 140, h: C.H });
-      }
-      if (pCount >= 3) {
+        platforms.push({ x: 260, y: 500 + (s.r2 * 40), w: 140, h: 140 });
         // 3. Beside player 2
-        platforms.push({ x: 520, y: 500 + (s.r1 * 40), w: 140, h: C.H });
-      }
-      if (pCount >= 4) {
+        platforms.push({ x: 520, y: 500 + (s.r1 * 40), w: 140, h: 140 });
         // 4. Right-most (top or bottom based on random seed)
-        platforms.push({ x: 800, y: s.r2 > 0.5 ? 250 : 500, w: 140, h: C.H });
-      }
-
-      // If it's just a 1v1 Bot game, let's keep them far apart
-      if (pCount === 2 && isBotGame) {
-        platforms[1].x = 750;
-        platforms[1].y = platforms[0].y + (s.r2 > 0.5 ? 50 : -50);
+        platforms.push({ x: 800, y: s.r2 > 0.5 ? 250 : 500, w: 140, h: 140 });
       }
 
       players = [];

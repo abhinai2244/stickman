@@ -174,10 +174,10 @@ wss.on('connection', (ws) => {
       });
       // Generate seed/settings for round
       const s = {
-        w0: 100 + Math.random() * 30, w1: 100 + Math.random() * 30,
-        y0: Math.floor(280 + Math.random() * 200), y1: Math.floor(280 + Math.random() * 200),
-        x0: Math.floor(5 + Math.random() * 40), x1: Math.floor(GAME_W - (5 + Math.random() * 40)),
-        h0: Math.floor(1 + Math.random() * 4), h1: Math.floor(1 + Math.random() * 4)
+        r1: Math.random(), r2: Math.random(),
+        h0: Math.floor(1 + Math.random() * 4), h1: Math.floor(1 + Math.random() * 4),
+        h2: Math.floor(1 + Math.random() * 4), h3: Math.floor(1 + Math.random() * 4),
+        pCount: selected.length
       };
       // Notify all clients to start with assignments and seed
       for (const c of room.clients) sendSafe(c.ws, { type: 'start', s, assignments });
